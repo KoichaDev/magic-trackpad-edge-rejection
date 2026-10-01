@@ -373,8 +373,11 @@ struct PrototypeView: View {
 // Route the title-bar minimize button and ⌘M through the same saved preference.
 final class TrackpadWindow: NSWindow {
     var minimizeToMenuBar = false
+    var onMenuBarHide: (() -> Void)?
     override func miniaturize(_ sender: Any?) {
-        if minimizeToMenuBar { orderOut(sender) } else { super.miniaturize(sender) }
+        if minimizeToMenuBar {
+            orderOut(sender); onMenuBarHide?()
+        } else { super.miniaturize(sender) }
     }
 }
 
@@ -384,13 +387,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
+        restoreAppIcon()
         let model = AppModel(); self.model = model
         let window = TrackpadWindow(contentRect: NSRect(x: 0, y: 0, width: 880, height: 850),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "Trackpad Edges — Palm rejection"
         window.delegate = self
+        window.onMenuBarHide = { NSApp.setActivationPolicy(.accessory) }
         window.contentView = NSHostingView(rootView: PrototypeView(model: model))
         window.center(); self.window = window
         model.onWindowLocationChange = { [weak self] in self?.applyWindowLocation($0) }
@@ -422,20 +425,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         return item
     }
 
+    private func restoreAppIcon() {
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
+    }
+
     private func applyWindowLocation(_ location: WindowLocation) {
         window?.minimizeToMenuBar = location == .menuBar
-        if location == .menuBar {
-            if statusItem == nil {
-                let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-                let menu = NSMenu(); menu.delegate = self
-                item.menu = menu; statusItem = item
-            }
-            updateStatusItem()
-            NSApp.setActivationPolicy(.accessory)
-        } else {
+        // Always retain a menu bar entry, including in Dock mode, so changing the
+        // minimize destination never removes the user's access to quick controls.
+        if statusItem == nil {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            let menu = NSMenu(); menu.delegate = self
+            item.menu = menu; statusItem = item
+        }
+        updateStatusItem()
+        if location == .dock || window?.isVisible == true {
             NSApp.setActivationPolicy(.regular)
-            if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
-            statusItem = nil
+            restoreAppIcon()
         }
     }
 
@@ -443,9 +450,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard let model, let statusItem else { return }
         let active = model.running && model.rejectEdges
         let state = active ? "Palm rejection active" : model.running ? "Observation active" : "Palm rejection stopped"
-        let icon = NSImage(systemSymbolName: active ? "hand.raised.fill" : "hand.raised", accessibilityDescription: state)
-        icon?.size = NSSize(width: 18, height: 18); icon?.isTemplate = true
+        let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns")
+        let icon = iconURL.flatMap { NSImage(contentsOf: $0) }
+            ?? NSImage(systemSymbolName: "hand.raised", accessibilityDescription: state)
+        icon?.size = NSSize(width: 18, height: 18)
         statusItem.button?.image = icon
+        statusItem.button?.title = icon == nil ? "TE" : ""
         statusItem.button?.toolTip = "Trackpad Edges — \(state)"
         statusItem.button?.setAccessibilityLabel("Trackpad Edges — \(state)")
         if let menu = statusItem.menu { populateStatusMenu(menu, state: state) }
@@ -477,6 +487,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func menuWillOpen(_ menu: NSMenu) { updateStatusItem() }
     @objc private func showWindow(_ sender: Any?) {
+        // Showing the controls restores the original Dock icon. Menu bar mode
+        // removes it only when the user actually hides/minimizes the window.
+        NSApp.setActivationPolicy(.regular)
+        restoreAppIcon()
         if window?.isMiniaturized == true { window?.deminiaturize(sender) }
         window?.makeKeyAndOrderFront(sender)
         NSApp.activate(ignoringOtherApps: true)
@@ -491,7 +505,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     @objc private func chooseMenuBar(_ sender: Any?) { model?.windowLocation = .menuBar }
     @objc private func quit(_ sender: Any?) { NSApp.terminate(sender) }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model?.windowLocation == .menuBar { sender.orderOut(nil); return false }
+        if model?.windowLocation == .menuBar { window?.miniaturize(nil); return false }
         return true
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
