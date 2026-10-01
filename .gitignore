@@ -1,0 +1,32 @@
+# Swift Package Manager and local IDE state
+/.build/
+/.swiftpm/
+**/xcuserdata/
+*.xcuserstate
+
+# Generated app bundles, debug symbols, and transfer archives
+/build/
+*.app/
+*.dSYM/
+*.xcarchive/
+*.zip
+
+# Generated icon sizes (the source PNG and packaged ICNS are tracked)
+/Assets/AppIcon.iconset/
+
+# Local device/contact captures and verification output
+/verification/
+/captures/
+trackpad-*.json
+rejection-test.json
+observation-test.json
+/devices.json
+/diagnostics.json
+*.jsonl
+
+# Local credentials and macOS metadata
+.env
+.env.*
+!.env.example
+.DS_Store
+._*
