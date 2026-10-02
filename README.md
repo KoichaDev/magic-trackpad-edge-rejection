@@ -33,7 +33,7 @@ sh build-app.sh
 open build/TrackpadEdges.app
 ```
 
-The build script creates a release executable, includes the app icon and bundle metadata, and signs `build/TrackpadEdges.app` with a local ad hoc signature. This is not an Apple Developer ID signature or notarization. The source repository excludes build outputs and local captures.
+The build script creates a release executable, includes the app icon and bundle metadata, and signs `build/TrackpadEdges.app` with a local ad hoc signature. It also refreshes the bundle date and its macOS application registration so Finder picks up the icon after rebuilding. This is not an Apple Developer ID signature or notarization. The source repository excludes build outputs and local captures.
 
 ### Rebuild an existing checkout
 
