@@ -38,6 +38,7 @@ func probe(_ args: [String]) throws {
         // Zero margins make the filter admit every contact, so this records
         // the original bytes without changing what the system sees.
         rejectEdges = true
+        contactsOnly = true // No event tap, so no Input Monitoring permission is needed.
         session.store.setMargins(Margins(left: 0, right: 0, top: 0, bottom: 0))
         te_raw_capture_enable(true)
     }
