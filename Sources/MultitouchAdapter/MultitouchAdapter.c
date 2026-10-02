@@ -106,7 +106,7 @@ static bool describe(MTDevice device, TEDevice *out) {
     }
     // Fail closed on unknown identity. Never silently select the default device.
     // MTDeviceIsAlive remained false for an enumerated, connected device on
-    // macOS 15.7.5. Use registry membership rather than this private flag.
+    // macOS 15.7.5 (observed). Use registry membership rather than this private flag.
     out->eligible = !out->built_in
         && (out->family == 128 || out->family == 129 || out->family == 130)
         && strstr(out->product, "Magic Trackpad") != NULL
@@ -204,24 +204,32 @@ static bool start_session(uint64_t device_id, TEFrameCallback callback, void *co
         CFTypeRef parser = IORegistryEntryCreateCFProperty(service, CFSTR("parser-type"), kCFAllocatorDefault, 0);
         int32_t parser_type = 0;
         if (parser && CFGetTypeID(parser) == CFNumberGetTypeID()) CFNumberGetValue(parser, kCFNumberSInt32Type, &parser_type);
-        bool supported = sysctlbyname("kern.osproductversion", os, &os_size, NULL, 0) == 0
-            && strcmp(os, "15.7.5") == 0 && describe(target, &identity) && identity.family == 129
-            && get_driver_type(target, &type) == 0 && type == 4 && parser_type == 1000
-            && desc && CFGetTypeID(desc) == CFDataGetTypeID() && CFDataGetLength(desc) == 16;
-        if (supported) {
+        const char *reason = NULL;
+        // Any macOS 15.x is accepted; the descriptor, parser and packet
+        // checks below still have to pass, and te_filter_packet fails closed.
+        if (sysctlbyname("kern.osproductversion", os, &os_size, NULL, 0) != 0 || strncmp(os, "15.", 3) != 0)
+            reason = "Unsupported macOS version: native rejection supports macOS 15.x only";
+        else if (!describe(target, &identity) || identity.family != 129
+                 || get_driver_type(target, &type) != 0 || type != 4 || parser_type != 1000)
+            reason = "Unsupported trackpad: native rejection needs a Bluetooth Magic Trackpad (family 129, Compact V7)";
+        else if (!desc || CFGetTypeID(desc) != CFDataGetTypeID() || CFDataGetLength(desc) != 16)
+            reason = "Unsupported trackpad: sensor surface descriptor has an unexpected format";
+        if (!reason) {
             const uint8_t *d = CFDataGetBytePtr(desc);
             configuration.min_x = (int16_t)(d[8] | (d[9] << 8));
             configuration.min_y = (int16_t)(d[10] | (d[11] << 8));
             configuration.max_x = (int16_t)(d[12] | (d[13] << 8));
             configuration.max_y = (int16_t)(d[14] | (d[15] << 8));
-            supported = configuration.max_x > configuration.min_x && configuration.max_y > configuration.min_y;
+            if (configuration.max_x <= configuration.min_x || configuration.max_y <= configuration.min_y)
+                reason = "Unsupported trackpad: sensor surface descriptor has invalid bounds";
         }
         if (desc) CFRelease(desc); if (parser) CFRelease(parser);
         uint8_t empty[4] = {0x31,0,0,0}, result[4]; size_t result_size;
-        supported = supported && te_filter_packet(&configuration, empty, 4, result, 4, &result_size);
-        if (!supported) {
+        if (!reason && !te_filter_packet(&configuration, empty, 4, result, 4, &result_size))
+            reason = "Native rejection settings were rejected by the packet filter";
+        if (reason) {
             CFRelease(target);
-            snprintf(error_text, sizeof(error_text), "Native rejection currently supports macOS 15.7.5 and Bluetooth Magic Trackpad family 129 / Compact V7 only");
+            snprintf(error_text, sizeof(error_text), "%s", reason);
             return false;
         }
     }

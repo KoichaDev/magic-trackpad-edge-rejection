@@ -32,7 +32,7 @@ final class AppModel: ObservableObject {
         case .observing: return "Observation only. Palm rejection is off."
         case .disconnected: return "Reconnect your Magic Trackpad, then press Start."
         case .unavailable: return "Connect a compatible Bluetooth Magic Trackpad."
-        case .error: return "Protection stopped. Open Advanced for the details, then try again."
+        case .error: return status.isEmpty ? "Protection stopped. Open Advanced for the details, then try again." : "Protection stopped: \(status)"
         case .stopped: return canStart ? "Press Start to enable palm rejection." : "Select a trackpad to continue."
         }
     }

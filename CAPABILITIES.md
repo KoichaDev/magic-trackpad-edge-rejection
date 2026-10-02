@@ -43,7 +43,7 @@ Device/contact captures and detailed verification output stay local under the ig
 | Launch at login | One-time opt-in prompt and reversible checkbox/menu setting via SMAppService.mainApp. Approval and failure states are visible; filtering still requires an explicit Start. |
 | Status and simplified UI | Active/Stopped/Observing/Disconnected/Unavailable/Error; original menu bar icon plus a short label. Main window retains device, margins, canvas and Start/Stop; diagnostics are under Advanced and preferences under Settings. Device discovery never activates protection. |
 | Installation and version | `sh install-app.sh` installs the signed build into Applications. Settings reveals the actual app path; About reads version/build from the running bundle. |
-| Coverage | macOS 15.7.5, family 129, driver type 4, parser 1000 / Compact V7 only. |
+| Coverage | macOS 15.x (verified on 15.7.5), family 129, driver type 4, parser 1000 / Compact V7 only. |
 
 Do not claim complete palm rejection until [manual acceptance](MANUAL-VERIFICATION.md) passes. Counters show implementation activity, not correct native gesture behavior.
 
