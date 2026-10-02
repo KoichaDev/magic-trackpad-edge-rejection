@@ -23,6 +23,7 @@ The previous release's Start, local ⌘D, and automatic cutoff were checked thro
 | Window location | Switch Dock/Menu bar; minimize with the button, yellow button, and ⌘M; restore; close in menu bar mode; quit/reopen | Rejection remains active while hidden/minimized; saved mode restores; menu Start/Stop works; Dock close quits |
 | Stop/quit | ⌃⌥⌘D, Stop palm rejection, Dock close, ⌘Q during click/drag/scroll | Ordinary input resumes; no stuck buttons |
 | Permissions/tap | Revoke Input Monitoring while observing; verify status and restart | Observation stops; input remains normal |
+| Auto-start | Turn on Start protection automatically, press Start, quit and reopen; sleep/wake; switch the trackpad off and on; press Stop and reopen; run `kill -9` on the app twice while Active, reopening between | Protection resumes after reopen, wake and reconnect; a manual Stop stays stopped after reopen; after two kills automatic start pauses with a notice until a manual Start |
 | Bluetooth disconnect | Switch target off during observation, then reconnect | Observation stops; explicit restart required; other devices work |
 | Sleep/session | Sleep/wake or switch session while observing | Observation stops; explicit restart required |
 

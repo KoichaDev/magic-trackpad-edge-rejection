@@ -65,15 +65,21 @@ Swift build caches are in `.build/`; the finished app is in `build/`. The genera
 3. Click **Start palm rejection**. It stays active without a timeout while the app and selected device remain available. Test a center finger with an edge palm, crossings, clicks, scrolling, and gestures using [MANUAL-VERIFICATION.md](MANUAL-VERIFICATION.md).
 4. Open **Settings…** with the gear button or **⌘,** and choose **Minimize to → Dock** or **Menu bar**. This preference saves automatically. **Minimize**, the yellow window button, and **⌘M** keep rejection running. The original Trackpad Edges icon stays in the menu bar in both modes, alongside **On**, **Off**, or another status label. Its menu includes **Show Trackpad Edges**, **Start/Stop palm rejection**, **Settings…**, and **Quit**. The Dock icon remains visible while the controls are open. Dock mode minimizes into the Dock; menu bar mode hides the Dock icon only when you hide/minimize the window. Showing the window restores the original Dock icon. Closing the window in menu bar mode also hides it; in Dock mode closing it quits. Reopening shows the controls; starting rejection still requires an explicit click.
 5. The status distinguishes **Active**, **Stopped**, **Observing**, **Disconnected**, **Unavailable**, and **Error**. Reconnecting a device updates its availability while protection stays stopped. Dots show original contacts: red contacts are excluded from reinjected packets. **Advanced** contains counters for raw packets, rejected contact samples, and blocked physical click starts. Samples are not distinct fingers.
-6. **Stop palm rejection**, local **⌘D**, or quit closes the filter client and restores ordinary input. The registered global **⌃⌥⌘D** shortcut still needs physical verification; use Stop palm rejection or local ⌘D during tests. Disconnect, sleep/session changes, or filter validation errors stop the session and require an explicit restart.
+6. **Stop palm rejection**, local **⌘D**, or quit closes the filter client and restores ordinary input. The registered global **⌃⌥⌘D** shortcut still needs physical verification; use Stop palm rejection or local ⌘D during tests. Disconnect, sleep/session changes, or filter validation errors stop the session and require an explicit restart, unless you turn on **Start protection automatically** (below).
 7. **Advanced → Export capture…** saves bounded JSON with contact diagnostics and filter counters. Captures contain device identity and touch positions; keep them local.
 8. Click the version in the main window or choose **About Trackpad Edges…** to see the running app's version and build. **Settings → Application → Show app in Finder** reveals the actual app bundle, so you can distinguish an installed copy from an older build.
+
+### Start protection automatically
+
+**Settings → Startup → Start protection automatically** is off by default. When on, protection resumes by itself after the app launches, the Mac wakes, or the trackpad reconnects, but only if it was running when it last stopped. Pressing Stop, **⌘D**, or **⌃⌥⌘D** is respected and is not undone at the next launch. Quitting normally keeps protection resuming on the next launch.
+
+If protection fails, or the app dies with protection running (a crash or `kill -9`), twice in a row, automatic start pauses and the main window explains why. It stays paused until you press **Start palm rejection** yourself. A session that runs for 30 seconds clears the failure count. Automatic start never runs in observation-only mode.
 
 ### Open at login
 
 The first launch asks whether to open Trackpad Edges when you sign in to macOS. Choose **Open at Login** or **Not Now**; the question is shown once. You can change this later with **Settings → Startup → Open at login** or the menu bar item.
 
-This uses Apple's `SMAppService.mainApp` login item, not a custom startup script or privileged helper. macOS opens the app after you sign in following a restart or shutdown. Saved margins and window-location settings restore normally; **palm rejection still requires pressing Start palm rejection**.
+This uses Apple's `SMAppService.mainApp` login item, not a custom startup script or privileged helper. macOS opens the app after you sign in following a restart or shutdown. Saved margins and window-location settings restore normally; **palm rejection still requires pressing Start palm rejection** unless you enable automatic start below.
 
 If macOS requires approval, the app shows **Approval needed** and a **Login Items…** button. Approve it in **System Settings → General → Login Items**; the app refreshes its state when you return. Registration failures show an error and retain the actual macOS state. You can also manage the item in System Settings.
 

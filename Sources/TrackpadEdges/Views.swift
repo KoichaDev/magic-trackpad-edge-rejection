@@ -19,13 +19,19 @@ struct MainView: View {
                             .font(.headline).foregroundStyle(model.protectionStatus.color)
                             .accessibilityLabel("Protection status: \(model.protectionStatus.title)")
                         Text(model.userMessage).font(.caption).foregroundStyle(.secondary)
+                        if let notice = model.autoStart.notice {
+                            HStack(spacing: 6) {
+                                Text(notice).font(.caption).foregroundStyle(.orange)
+                                Button("Dismiss") { model.autoStart.notice = nil }.buttonStyle(.link).font(.caption)
+                            }
+                        }
                     }
                     Spacer()
                     if model.running {
                         Button(model.rejectEdges ? "Stop palm rejection" : "Stop observation", action: model.disable)
                             .keyboardShortcut("d", modifiers: .command).controlSize(.large)
                     } else {
-                        Button(model.rejectEdges ? "Start palm rejection" : "Start observation", action: model.start)
+                        Button(model.rejectEdges ? "Start palm rejection" : "Start observation") { model.start() }
                             .buttonStyle(.borderedProminent).controlSize(.large).disabled(!model.canStart)
                     }
                 }
@@ -106,7 +112,9 @@ struct SettingsView: View {
             GroupBox("Startup") {
                 VStack(alignment: .leading, spacing: 8) {
                     StartupControl(settings: model.startup)
-                    Text("Opening at login opens the app. Press Start palm rejection to turn protection on.")
+                    Toggle("Start protection automatically", isOn: Binding(
+                        get: { model.autoStart.enabled }, set: model.autoStart.setEnabled))
+                    Text("Off by default. When on, protection resumes after launch, wake and trackpad reconnect, unless you stopped it. It pauses itself if protection fails or the app quits unexpectedly twice in a row. Stop it any time with ⌘D or ⌃⌥⌘D.")
                         .font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
             }

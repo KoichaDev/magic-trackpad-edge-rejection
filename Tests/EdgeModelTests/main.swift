@@ -11,6 +11,65 @@ func expect(_ expression: @autoclosure () -> Bool, file: StaticString = #filePat
 }
 
 struct EdgeModelTests {
+    func testAutoStartIsOffUntilEnabledAndRequiresEarlierExplicitStart() {
+        var policy = AutoStartPolicy()
+        expect(!policy.shouldAutoStart)
+        policy.setEnabled(true)
+        expect(!policy.shouldAutoStart) // Enabled, but protection was never started.
+        policy.sessionStarted(manual: true)
+        expect(policy.shouldAutoStart)
+        policy.sessionStopped(.user)
+        expect(!policy.shouldAutoStart) // A user Stop is respected.
+    }
+
+    func testAutoStartResumesAfterInterruptionAndQuitButNotAfterFailure() {
+        var policy = AutoStartPolicy()
+        policy.setEnabled(true)
+        policy.sessionStarted(manual: true)
+        policy.sessionStopped(.interrupted)
+        expect(policy.shouldAutoStart) // Sleep or disconnect.
+        policy.sessionStarted(manual: false)
+        policy.appWillQuit()
+        policy.appLaunched()
+        expect(policy.shouldAutoStart && policy.failures == 0) // Orderly quit is not a crash.
+        policy.sessionStarted(manual: false)
+        policy.sessionStopped(.failure)
+        expect(!policy.shouldAutoStart && policy.failures == 1)
+    }
+
+    func testCrashLoopBreakerTripsAfterTwoUncleanLaunchesAndManualStartRearms() {
+        var policy = AutoStartPolicy()
+        policy.setEnabled(true)
+        policy.sessionStarted(manual: true)
+        policy.appLaunched() // Previous run died with the session open.
+        expect(policy.failures == 1 && !policy.tripped && policy.shouldAutoStart)
+        policy.sessionStarted(manual: false)
+        policy.appLaunched() // Died again.
+        expect(policy.failures == 2 && policy.tripped && !policy.shouldAutoStart)
+        policy.sessionStarted(manual: false)
+        expect(policy.tripped) // Automatic starts never re-arm.
+        policy.sessionStarted(manual: true)
+        expect(!policy.tripped && policy.failures == 0 && policy.shouldAutoStart)
+    }
+
+    func testStableSessionForgivesFailuresAndDisablingClearsIntent() {
+        var policy = AutoStartPolicy()
+        policy.setEnabled(true)
+        policy.sessionStarted(manual: true)
+        policy.appLaunched()
+        expect(policy.failures == 1)
+        policy.sessionStarted(manual: false)
+        policy.sessionStable()
+        expect(policy.failures == 0)
+        policy.appLaunched() // A later crash starts counting from zero again.
+        expect(policy.failures == 0 || policy.failures == 1)
+        policy.setEnabled(false)
+        expect(!policy.shouldAutoStart && !policy.enabled)
+        var plain = AutoStartPolicy()
+        plain.sessionStarted(manual: true); plain.appLaunched(); plain.appLaunched()
+        expect(!plain.tripped) // The breaker only guards an enabled setting.
+    }
+
     func testFourIndependentMarginsAndInclusiveCenterBoundary() {
         let margins = Margins(left: 0.1, right: 0.2, top: 0.3, bottom: 0.4)
         expect(margins.contains(Contact(id: 1, x: 0.1, y: 0.4)))
@@ -104,4 +163,12 @@ suite.testEdgeTimingNeverGrantsPermissionToSuppressUnattributedEvents()
 print("PASS: testEdgeTimingNeverGrantsPermissionToSuppressUnattributedEvents")
 suite.testMovingEdgePalmDoesNotPolluteCenterDiagnosticDelta()
 print("PASS: testMovingEdgePalmDoesNotPolluteCenterDiagnosticDelta")
-print("7 scenarios passed (\(assertionCount) assertions)")
+suite.testAutoStartIsOffUntilEnabledAndRequiresEarlierExplicitStart()
+print("PASS: testAutoStartIsOffUntilEnabledAndRequiresEarlierExplicitStart")
+suite.testAutoStartResumesAfterInterruptionAndQuitButNotAfterFailure()
+print("PASS: testAutoStartResumesAfterInterruptionAndQuitButNotAfterFailure")
+suite.testCrashLoopBreakerTripsAfterTwoUncleanLaunchesAndManualStartRearms()
+print("PASS: testCrashLoopBreakerTripsAfterTwoUncleanLaunchesAndManualStartRearms")
+suite.testStableSessionForgivesFailuresAndDisablingClearsIntent()
+print("PASS: testStableSessionForgivesFailuresAndDisablingClearsIntent")
+print("11 scenarios passed (\(assertionCount) assertions)")

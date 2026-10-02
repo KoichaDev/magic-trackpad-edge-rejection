@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import EdgeModel
 
@@ -63,6 +64,8 @@ final class AppModel: ObservableObject {
     @Published var rejectEdges = true
     @Published var filterText = ""
     let startup = StartupSettings()
+    let autoStart = AutoStartSettings()
+    private var autoStartObservation: AnyCancellable?
     let session = ObservationSession()
     private var deltaTracker = CenterDeltaTracker()
     private var previousSequence: UInt64 = 0
@@ -70,6 +73,10 @@ final class AppModel: ObservableObject {
     private var healthTimer: Timer?
     private var deviceTimer: Timer?
     private var hasSeenCompatibleDevice = false
+    // Set when protection should come back on its own (launch, wake, reconnect).
+    private var resumePending = false
+    private var resumeNotBefore = Date.distantPast
+    private var loginSessionActive = true
     private var gestureMonitor: Any?
     private var hotKey: DisableHotKey?
     private var workspaceTokens: [NSObjectProtocol] = []
@@ -82,8 +89,10 @@ final class AppModel: ObservableObject {
 
     init() {
         session.store.setMargins(margins)
+        autoStartObservation = autoStart.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         session.onStop = { [weak self] reason, kind in
             self?.status = reason
+            self?.recordStop(kind)
             self?.protectionStatus = kind == .disconnected ? .disconnected : kind == .failure ? .error : .stopped
             self?.running = false; self?.contacts = []
             self?.fresh = false; self?.deltaTracker.reset()
@@ -97,6 +106,7 @@ final class AppModel: ObservableObject {
         deviceTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             guard let self, !self.running else { return }
             self.refresh(clearStatus: false) // Discovery never activates rejection.
+            self.attemptResume()
         }
         // Local gestures prove only delivery to our window. They are not a global
         // interception or proof that Mission Control/other native gestures survive.
@@ -109,9 +119,20 @@ final class AppModel: ObservableObject {
         }
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
             workspaceTokens.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                self?.session.stop(reason: "Sleep/session change; explicit restart required", kind: .sessionChange)
+                self?.loginSessionActive = false
+                let resumes = self?.autoStart.shouldAutoStart == true
+                self?.session.stop(reason: resumes ? "Sleep/session change; will resume automatically" : "Sleep/session change; explicit restart required", kind: .sessionChange)
             })
         }
+        workspaceTokens.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            // Give Bluetooth a moment to bring the trackpad back before resuming.
+            self?.resumeNotBefore = Date().addingTimeInterval(3)
+        })
+        workspaceTokens.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.loginSessionActive = true
+        })
+        resumePending = autoStart.shouldAutoStart
+        DispatchQueue.main.async { [weak self] in self?.attemptResume() }
     }
     func refresh(clearStatus: Bool = true) {
         guard !running else { return }
@@ -133,7 +154,25 @@ final class AppModel: ObservableObject {
             protectionStatus = .error; status = String(describing: error)
         }
     }
-    func start() {
+    /// Starts protection on its own, but only while auto-start is allowed and a
+    /// compatible trackpad is present. Never runs without an earlier explicit Start.
+    private func attemptResume() {
+        guard resumePending, !running else { return }
+        guard autoStart.shouldAutoStart else { resumePending = false; return }
+        guard loginSessionActive, Date() >= resumeNotBefore, canStart else { return }
+        resumePending = false
+        start(automatic: true)
+    }
+    private func recordStop(_ kind: SessionStopKind) {
+        switch kind {
+        case .user: autoStart.sessionStopped(.user); resumePending = false
+        case .failure: autoStart.sessionStopped(.failure); resumePending = false
+        case .sessionChange, .disconnected:
+            autoStart.sessionStopped(.interrupted)
+            resumePending = autoStart.shouldAutoStart
+        }
+    }
+    func start(automatic: Bool = false) {
         guard let selected = devices.first(where: { $0.id == selectedID && $0.eligible }) else {
             status = "Select a Bluetooth Magic Trackpad first"; return
         }
@@ -141,6 +180,7 @@ final class AppModel: ObservableObject {
             try session.start(device: selected, observeEvents: !contactsOnly, rejectEdges: rejectEdges)
             previousSequence = 0; deltaTracker.reset()
             status = session.status; protectionStatus = rejectEdges ? .active : .observing; running = true
+            if rejectEdges { autoStart.sessionStarted(manual: !automatic) }
         } catch { session.stop(reason: String(describing: error), kind: .failure) }
     }
     func disable() { if running { session.stop(reason: "Stopped by user", kind: .user) } }
@@ -179,6 +219,7 @@ final class AppModel: ObservableObject {
         catch { status = "Export failed: \(error)" }
     }
     func shutdown() {
+        autoStart.appWillQuit()
         disable(); timer?.invalidate(); healthTimer?.invalidate(); deviceTimer?.invalidate()
         if let gestureMonitor { NSEvent.removeMonitor(gestureMonitor) }
         workspaceTokens.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
