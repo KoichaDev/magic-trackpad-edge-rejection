@@ -94,7 +94,10 @@ In **Advanced**, enable **Observation only** to observe contacts without changin
 .build/debug/TrackpadEdges --diagnostics
 .build/debug/TrackpadEdges --probe 15 --contacts-only --reject-edges --output /tmp/rejection-test.json
 .build/debug/TrackpadEdges --probe 15 --contacts-only --output /tmp/observation-test.json
+.build/debug/TrackpadEdges --probe 20 --raw-bytes --output /tmp/raw-test.json
 ```
+
+Observation captures (format version 3) include each contact's decoded `pressure`, `majorAxis` and `minorAxis`. `--raw-bytes` additionally records the original 9-byte contact record of every V7 packet, with a per-byte min/max/distinct summary. It opens the filter client with all margins at zero, so nothing is rejected, and is meant for working out whether the packet carries a usable palm-size or pressure field.
 
 Command-line probes last at most 60 seconds for their requested diagnostic duration; app sessions have no time limit. Use `--device ID` when multiple eligible trackpads exist.
 

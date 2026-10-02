@@ -1,5 +1,6 @@
 import AppKit
 import MultitouchAdapter
+import EdgeModel
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 
@@ -11,6 +12,7 @@ func probe(_ args: [String]) throws {
     var output: URL?
     var contactsOnly = false
     var rejectEdges = false
+    var rawBytes = false
     var index = 2
     while index < args.count {
         switch args[index] {
@@ -22,6 +24,7 @@ func probe(_ args: [String]) throws {
             output = URL(fileURLWithPath: args[index + 1]); index += 2
         case "--contacts-only": contactsOnly = true; index += 1
         case "--reject-edges": rejectEdges = true; index += 1
+        case "--raw-bytes": rawBytes = true; index += 1
         default: throw PrototypeError.message("Unknown probe option: \(args[index])")
         }
     }
@@ -31,6 +34,14 @@ func probe(_ args: [String]) throws {
     else if id == nil && eligible.count == 1 { selected = eligible[0] }
     else { throw PrototypeError.message("Select an eligible device with --device; see --devices") }
     let session = ObservationSession()
+    if rawBytes {
+        // Zero margins make the filter admit every contact, so this records
+        // the original bytes without changing what the system sees.
+        rejectEdges = true
+        session.store.setMargins(Margins(left: 0, right: 0, top: 0, bottom: 0))
+        te_raw_capture_enable(true)
+    }
+    defer { if rawBytes { te_raw_capture_enable(false) } }
     try session.start(device: selected, observeEvents: !contactsOnly, rejectEdges: rejectEdges)
     let deadline = Date().addingTimeInterval(seconds)
     while Date() < deadline && session.running {
@@ -39,7 +50,13 @@ func probe(_ args: [String]) throws {
     }
     if session.running { session.stop(reason: "Probe complete; ordinary input restored") }
     let capture = session.store.capture(device: selected, status: session.status)
-    try writeJSON(capture, to: output)
+    if rawBytes {
+        let records = readRawCapture()
+        try writeJSON(RawProbeOutput(capture: capture, rawRecordCount: records.count,
+            byteSummary: summarize(records), rawContacts: records), to: output)
+    } else {
+        try writeJSON(capture, to: output)
+    }
 }
 
 do {
@@ -66,7 +83,8 @@ do {
         TrackpadEdges                    Open the palm rejection window (runs until stopped)
         TrackpadEdges --devices          List multitouch devices (no input changes)
         TrackpadEdges --diagnostics      Print environment and permission status
-        TrackpadEdges --probe SECONDS [--device ID] [--contacts-only] [--reject-edges] [--output PATH]
+        TrackpadEdges --probe SECONDS [--device ID] [--contacts-only] [--reject-edges] [--raw-bytes] [--output PATH]
+        --raw-bytes records the original 9-byte contact records (zero margins, nothing is rejected).
         Rejection removes raw edge contacts before Apple's recognizer. Probes stop within 60 seconds.
         """)
     } else { throw PrototypeError.message("Unknown option; use --help") }

@@ -54,6 +54,10 @@ static TERawFilter raw_filter;
 static TEFilterStats filter_stats;
 static bool rejection_session;
 static uint8_t last_header[4];
+static bool raw_capture_enabled;
+static TERawRecord raw_capture[TE_RAW_CAPTURE_CAPACITY];
+static size_t raw_capture_next, raw_capture_count;
+static uint64_t raw_capture_packets;
 static bool have_header;
 
 static bool load_symbols(void) {
@@ -152,6 +156,22 @@ static int32_t receive_frame(MTDevice device, void *data, int32_t count, double 
     return 0; // Observation callback result, not a request to suppress a touch.
 }
 
+void te_raw_capture_enable(bool enabled) {
+    pthread_mutex_lock(&callback_lock);
+    raw_capture_enabled = enabled;
+    raw_capture_next = raw_capture_count = 0; raw_capture_packets = 0;
+    pthread_mutex_unlock(&callback_lock);
+}
+
+size_t te_raw_capture_read(TERawRecord *out, size_t capacity) {
+    pthread_mutex_lock(&callback_lock);
+    size_t n = raw_capture_count < capacity ? raw_capture_count : capacity;
+    size_t start = (raw_capture_next + TE_RAW_CAPTURE_CAPACITY - raw_capture_count) % TE_RAW_CAPTURE_CAPACITY;
+    for (size_t i = 0; out && i < n; i++) out[i] = raw_capture[(start + (raw_capture_count - n) + i) % TE_RAW_CAPTURE_CAPACITY];
+    pthread_mutex_unlock(&callback_lock);
+    return n;
+}
+
 static void receive_raw(MTDevice device, void *bytes, int32_t size, void *context) {
     (void)context;
     pthread_mutex_lock(&callback_lock);
@@ -160,6 +180,18 @@ static void receive_raw(MTDevice device, void *bytes, int32_t size, void *contex
         size_t output_size = 0;
         filter_stats.packets++;
         bool valid = size > 0 && size <= (int32_t)sizeof(output) && bytes;
+        if (raw_capture_enabled && valid && size >= 4 && ((const uint8_t *)bytes)[0] == 0x31 && (size - 4) % 9 == 0) {
+            const uint8_t *in = bytes;
+            raw_capture_packets++;
+            for (size_t pos = 4; pos + 9 <= (size_t)size; pos += 9) {
+                TERawRecord *slot = &raw_capture[raw_capture_next];
+                slot->packet = raw_capture_packets;
+                memcpy(slot->header, in, 4);
+                memcpy(slot->contact, in + pos, 9);
+                raw_capture_next = (raw_capture_next + 1) % TE_RAW_CAPTURE_CAPACITY;
+                if (raw_capture_count < TE_RAW_CAPTURE_CAPACITY) raw_capture_count++;
+            }
+        }
         if (valid && filter_stats.enabled) {
             valid = te_filter_packet(&raw_filter, bytes, (size_t)size, output, sizeof(output), &output_size);
             if (!valid) { filter_stats.error = -1; filter_stats.enabled = false; }

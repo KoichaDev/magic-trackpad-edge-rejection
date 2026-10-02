@@ -35,6 +35,15 @@ enum PrototypeError: Error, CustomStringConvertible {
     var description: String { switch self { case let .message(text): return text } }
 }
 
+/// Apple's decoded per-contact signals. The spike for palm heuristics checks
+/// whether these separate a fingertip from a resting palm.
+struct ContactSignal: Codable {
+    let id: Int32
+    let pressure: Double
+    let majorAxis: Double
+    let minorAxis: Double
+}
+
 struct FrameSnapshot: Codable {
     let sequence: UInt64
     let receivedUptime: Double
@@ -42,6 +51,7 @@ struct FrameSnapshot: Codable {
     let frame: Int32
     let valid: Bool
     let contacts: [Contact]
+    var signals: [ContactSignal] = []
 }
 
 struct EventSample: Encodable {
@@ -159,17 +169,19 @@ final class ObservationStore {
     func receive(_ raw: UnsafePointer<TEContact>?, count: Int32, timestamp: Double, frame: Int32) {
         let now = ProcessInfo.processInfo.systemUptime
         var contacts: [Contact] = []
+        var signals: [ContactSignal] = []
         if count > 0, let raw {
-            contacts = UnsafeBufferPointer(start: raw, count: Int(count)).map {
-                Contact(id: $0.id, state: $0.state, x: Double($0.x), y: Double($0.y))
-            }
+            let buffer = UnsafeBufferPointer(start: raw, count: Int(count))
+            contacts = buffer.map { Contact(id: $0.id, state: $0.state, x: Double($0.x), y: Double($0.y)) }
+            signals = buffer.map { ContactSignal(id: $0.id, pressure: Double($0.pressure),
+                majorAxis: Double($0.major_axis), minorAxis: Double($0.minor_axis)) }
         }
         lock.lock(); defer { lock.unlock() }
         frameCount += 1
         let valid = count >= 0 && composition(contacts, margins: margins, fresh: true) != .invalid
         if !valid { invalidCount += 1 }
         let snapshot = FrameSnapshot(sequence: frameCount, receivedUptime: now,
-            frameworkTimestamp: timestamp, frame: frame, valid: valid, contacts: contacts)
+            frameworkTimestamp: timestamp, frame: frame, valid: valid, contacts: contacts, signals: signals)
         latest = snapshot
         frameRing.append(snapshot)
     }
@@ -203,7 +215,7 @@ final class ObservationStore {
     func capture(device: DeviceInfo?, status: String) -> Capture {
         let filter = FilterSummary() // Acquire adapter lock before store lock.
         lock.lock(); defer { lock.unlock() }
-        return Capture(formatVersion: 2, createdAt: ISO8601DateFormatter().string(from: Date()),
+        return Capture(formatVersion: 3, createdAt: ISO8601DateFormatter().string(from: Date()),
             os: ProcessInfo.processInfo.operatingSystemVersionString,
             mode: rejectionMode ? "experimental-native-raw-rejection" : "observation-only",
             selectedDevice: device, margins: margins, framesReceived: frameCount,
