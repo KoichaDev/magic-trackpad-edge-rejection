@@ -238,6 +238,8 @@ private let frameCallback: TEFrameCallback = { raw, count, timestamp, frame, con
         .receive(raw, count: count, timestamp: timestamp, frame: frame)
 }
 
+enum SessionStopKind { case user, sessionChange, disconnected, failure }
+
 final class ObservationSession {
     let store = ObservationStore()
     private var tap: CFMachPort?
@@ -245,7 +247,7 @@ final class ObservationSession {
     private(set) var running = false
     private(set) var device: DeviceInfo?
     private(set) var status = "Disabled"
-    var onStop: ((String) -> Void)?
+    var onStop: ((String, SessionStopKind) -> Void)?
 
     func start(device selected: DeviceInfo, observeEvents: Bool = true, rejectEdges: Bool = false) throws {
         stop(reason: "Starting")
@@ -273,7 +275,7 @@ final class ObservationSession {
                 guard let context else { return Unmanaged.passUnretained(event) }
                 let session = Unmanaged<ObservationSession>.fromOpaque(context).takeUnretainedValue()
                 if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                    session.stop(reason: "Event tap disabled; explicit restart required")
+                    session.stop(reason: "Event tap disabled; explicit restart required", kind: .failure)
                 } else { session.store.event(type: type, event: event) }
                 return Unmanaged.passUnretained(event) // Always passes every event.
             }
@@ -295,20 +297,20 @@ final class ObservationSession {
     func checkHealth() {
         guard running else { return }
         if store.rejectionMode && te_filter_stats().error != 0 {
-            stop(reason: "Native filter validation/reinjection failed; ordinary input restored")
-        } else if store.snapshot().4 > 0 { stop(reason: "Invalid private-API contact frame; stopped") }
-        else if !te_is_alive() { stop(reason: "Trackpad disconnected; explicit restart required") }
-        else if tap != nil && !CGPreflightListenEventAccess() { stop(reason: "Input Monitoring permission lost") }
-        else if let tap, !CGEvent.tapIsEnabled(tap: tap) { stop(reason: "Event tap disabled; explicit restart required") }
+            stop(reason: "Native filter validation/reinjection failed; ordinary input restored", kind: .failure)
+        } else if store.snapshot().4 > 0 { stop(reason: "Invalid private-API contact frame; stopped", kind: .failure) }
+        else if !te_is_alive() { stop(reason: "Trackpad disconnected; explicit restart required", kind: .disconnected) }
+        else if tap != nil && !CGPreflightListenEventAccess() { stop(reason: "Input Monitoring permission lost", kind: .failure) }
+        else if let tap, !CGEvent.tapIsEnabled(tap: tap) { stop(reason: "Event tap disabled; explicit restart required", kind: .failure) }
     }
-    func stop(reason: String = "Disabled") {
+    func stop(reason: String = "Disabled", kind: SessionStopKind = .user) {
         if let tap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil; source = nil
         te_stop()
         running = false; status = reason
         store.clearLatest()
-        onStop?(reason)
+        onStop?(reason, kind)
     }
     deinit { stop() }
 }

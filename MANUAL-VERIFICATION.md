@@ -1,12 +1,14 @@
 # Live native rejection acceptance protocol
 
-Check Reject edges and Contacts only, then Start palm rejection. App sessions run until stopped without a time limit. Record macOS/build, target device family/transport, Trackpad settings, and whether three-finger dragging or tap-to-click are enabled. Export a capture after each scenario; each Start resets capture and filter counters. The user has confirmed working rejection, but the full scenario matrix below remains pending.
+Leave Advanced → Observation only and Record system input events off, then Start palm rejection. App sessions run until stopped without a time limit. Record macOS/build, target device family/transport, Trackpad settings, and whether three-finger dragging or tap-to-click are enabled. Export a capture from Advanced after each scenario; each Start resets capture and filter counters. The user has confirmed working rejection, but the full scenario matrix below remains pending.
 
 The previous release's Start, local ⌘D, and automatic cutoff were checked through the UI on macOS 15.7.5. That cutoff has been removed. Verify the current session remains active beyond 60 seconds and stops on request; this does not replace checks during a physical click, drag, or scroll.
 
 | Scenario | What to record | Selective filtering acceptance condition |
 | --- | --- | --- |
 | Device selection | Bluetooth Magic Trackpad selected; built-in trackpad listed but ineligible | Only selected raw stream changes; other services remain usable |
+| Status and controls | Start, Stop, observation mode, disconnect/reconnect, filter failure, quit/reopen | Active/Stopped/Observing/Disconnected/Unavailable/Error match the actual session; reconnect/reopen never starts protection; margin fields, sliders, and canvas stay in sync |
+| Installed app | Build, install, launch Applications copy; open Settings and About; Show app in Finder | Running version/build and actual app path are visible; original icon appears; diagnostics are collapsed on launch; startup and minimize preferences are in Settings |
 | Orientation | Touch each physical corner individually; compare map | Left/right/top/bottom align with physical device |
 | All four edges | Move/tap/click/scroll on each 10% margin, including corners | No unwanted motion, clicks, scrolling, or gestures |
 | Single crossing | Move center → edge → center without lifting | Pointer pauses and resumes without a jump |

@@ -25,6 +25,8 @@ Device/contact captures and detailed verification output stay local under the ig
 
 - Release 0.4 native login-item registration was tested in an isolated, ad hoc signed app bundle on macOS 15.7.5. The first-run prompt appeared, Not Now stayed answered after reopening, enabling was reflected as enabled by macOS and survived an app restart, and disabling returned to unregistered. The temporary test item was unregistered before closing. An actual logout/login or Mac restart remains a manual check.
 
+- Release 0.5 (build 6) clean-source build and `sh test.sh` passed: 49 model assertions plus sanitizer-enabled raw packet checks. UI checks verified manual Start → Active, local ⌘D/Stop → Stopped, observation → Observing with rejection explicitly off, Advanced disclosure, Settings via the gear and keyboard shortcut, About version/build with the original icon, and synchronized canvas/slider/percentage editing. Installation into `/Applications` was verified with the running bundle path and Finder's original app icon. Existing margins and Open at login were preserved when relocating. Installer checks covered first install, replacement with a retained previous bundle, and refusal to replace a running app or an unrelated app. Physical disconnect, sleep, global shortcut, and direct status-menu interaction remain manual checks.
+
 ## Requirement status
 
 | Requirement | Implementation / acceptance |
@@ -39,6 +41,8 @@ Device/contact captures and detailed verification output stay local under the ig
 | Emergency shortcut | Stop palm rejection and local ⌘D available. Global shortcut remains unverified. |
 | Dock / menu bar | Saved window-location preference; hiding/minimizing keeps rejection active; menu bar close hides, Dock close quits. Status icon offers Show, Start/Stop, mode selection, and Quit. |
 | Launch at login | One-time opt-in prompt and reversible checkbox/menu setting via SMAppService.mainApp. Approval and failure states are visible; filtering still requires an explicit Start. |
+| Status and simplified UI | Active/Stopped/Observing/Disconnected/Unavailable/Error; original menu bar icon plus a short label. Main window retains device, margins, canvas and Start/Stop; diagnostics are under Advanced and preferences under Settings. Device discovery never activates protection. |
+| Installation and version | `sh install-app.sh` installs the signed build into Applications. Settings reveals the actual app path; About reads version/build from the running bundle. |
 | Coverage | macOS 15.7.5, family 129, driver type 4, parser 1000 / Compact V7 only. |
 
 Do not claim complete palm rejection until [manual acceptance](MANUAL-VERIFICATION.md) passes. Counters show implementation activity, not correct native gesture behavior.
