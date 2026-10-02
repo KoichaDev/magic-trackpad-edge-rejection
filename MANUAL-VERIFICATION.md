@@ -17,6 +17,7 @@ The previous release's Start, local ⌘D, and automatic cutoff were checked thro
 | Center scrolling | Two-finger vertical/horizontal scroll, reversal, momentum with edge palm | Scrolling preserved without edge contribution or stranded phase |
 | Native gestures | Pinch, rotate, swipe, Mission Control, desktop/app switching as enabled | Apple gestures preserved with edge contact present |
 | Other devices | Move/click/scroll built-in trackpad and another mouse while target edge is touched | Other devices fully usable |
+| Startup | Choose Not Now and reopen; enable Open at login; reopen; disable; change approval in macOS Login Items; sign out/in or restart | One-time question stays answered; state matches macOS; enabled app opens after login with saved settings; disabled app does not; filtering starts only on request |
 | Window location | Switch Dock/Menu bar; minimize with the button, yellow button, and ⌘M; restore; close in menu bar mode; quit/reopen | Rejection remains active while hidden/minimized; saved mode restores; menu Start/Stop works; Dock close quits |
 | Stop/quit | ⌃⌥⌘D, Stop palm rejection, Dock close, ⌘Q during click/drag/scroll | Ordinary input resumes; no stuck buttons |
 | Permissions/tap | Revoke Input Monitoring while observing; verify status and restart | Observation stops; input remains normal |

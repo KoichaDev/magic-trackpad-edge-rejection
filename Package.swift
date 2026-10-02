@@ -11,7 +11,7 @@ let package = Package(
         ]),
         .target(name: "EdgeModel"),
         .executableTarget(name: "TrackpadEdges", dependencies: ["MultitouchAdapter", "EdgeModel"],
-            linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("Carbon")]),
+            linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("Carbon"), .linkedFramework("ServiceManagement")]),
         // Standalone checks work with Command Line Tools, without Xcode's
         // XCTest/Swift Testing runtime and overlay modules.
         .executableTarget(name: "EdgeModelChecks", dependencies: ["EdgeModel"], path: "Tests/EdgeModelTests")

@@ -64,6 +64,16 @@ Swift build caches are in `.build/`; the finished app is in `build/`. The genera
 6. **Stop palm rejection**, local **⌘D**, or quit closes the filter client and restores ordinary input. The registered global **⌃⌥⌘D** shortcut still needs physical verification; use Stop palm rejection or local ⌘D during tests. Disconnect, sleep/session changes, or filter validation errors stop the session and require an explicit restart.
 7. **Export capture…** saves bounded JSON with contact diagnostics and filter counters. Captures contain device identity and touch positions; keep them local.
 
+### Open at login
+
+The first launch asks whether to open Trackpad Edges when you sign in to macOS. Choose **Open at Login** or **Not Now**; the question is shown once. You can change this later with the **Open at login** checkbox or the menu bar item.
+
+This uses Apple's `SMAppService.mainApp` login item, not a custom startup script or privileged helper. macOS opens the app after you sign in following a restart or shutdown. Saved margins and window-location settings restore normally; **palm rejection still requires pressing Start palm rejection**.
+
+If macOS requires approval, the app shows **Approval needed** and a **Login Items…** button. Approve it in **System Settings → General → Login Items**; the app refreshes its state when you return. Registration failures show an error and retain the actual macOS state. You can also manage the item in System Settings.
+
+Keep the app bundle in a permanent location while startup is enabled. For a normal installation, copy `build/TrackpadEdges.app` into your Applications folder and open that copy before enabling **Open at login**. If you move or replace the app, turn startup off, open the new copy, and turn it back on. Deleting a registered app prevents it from opening at login.
+
 Uncheck Reject edges for observation without changing input. Uncheck Contacts only to add a passive Core Graphics observer, which requires Input Monitoring. Raw rejection does not use Core Graphics suppression or timing-based attribution. A sandbox may deny the private client with `kIOReturnNotPermitted`; launch the app normally. No root helper or private entitlement is added.
 
 ## Command line
@@ -96,3 +106,5 @@ No Core Graphics event is dropped: `EventSample.suppressed` stays false. Native 
 - Installed macOS 15.7.5 MultitouchSupport and AppleMultitouchDriver symbol/disassembly inspection: filter client, raw routing, injection, Compact V7 parser, and coordinate transform.
 - [Linux Magic Trackpad decoder](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-magicmouse.c): independent reference for Bluetooth report 0x31 and nine-byte contact packing. This decoder is independently implemented and checked against Apple's callbacks.
 - [Apple HID client header](https://github.com/apple-oss-distributions/IOHIDFamily/blob/main/HID/Headers/HIDEventSystemClient.h): system event-filter callbacks require a private entitlement. This app uses the multitouch driver's separate raw-client path.
+
+- [Apple SMAppService.mainApp](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp): native main-app launch at login.

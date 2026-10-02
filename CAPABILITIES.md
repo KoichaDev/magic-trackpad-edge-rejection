@@ -6,7 +6,7 @@
 
 MTDeviceStart bit 30 requests an AppleMultitouchDeviceUserClient of type FLTR. Driver inspection shows original frames routed to filter clients; frames reinjected by a filter client go to ordinary clients, including WindowServer. Startup verifies the process's FilterEnabled registry property. This operates before native recognition and avoids splitting already processed mouse events.
 
-No driver, gesture engine, system input preference, HID seizure, or service is installed. The app saves its own margin and Dock/menu bar settings.
+No driver, gesture engine, system input preference, HID seizure, or service is installed. The app saves its own margin and Dock/menu bar settings. Optional launch at login uses macOS ServiceManagement; it installs no custom startup helper.
 
 ## Evidence and limits
 
@@ -23,6 +23,8 @@ Device/contact captures and detailed verification output stay local under the ig
 
 - Release 0.3 clean-source `sh test.sh` and `sh build-app.sh` passed. UI checks verified switching Dock/menu bar while active, remaining active after minimize/hide/close actions, and restoring the menu bar preference and margins after quitting and reopening. Direct interaction with the status icon menu remains a manual check; the automation surface exposes the app window rather than status items.
 
+- Release 0.4 native login-item registration was tested in an isolated, ad hoc signed app bundle on macOS 15.7.5. The first-run prompt appeared, Not Now stayed answered after reopening, enabling was reflected as enabled by macOS and survived an app restart, and disabling returned to unregistered. The temporary test item was unregistered before closing. An actual logout/login or Mac restart remains a manual check.
+
 ## Requirement status
 
 | Requirement | Implementation / acceptance |
@@ -36,6 +38,7 @@ Device/contact captures and detailed verification output stay local under the ig
 | Stop / quit / failures | Filter-client closure and empty release frame implemented; no app-session timeout. Physical drag/scroll/disconnect test pending. |
 | Emergency shortcut | Stop palm rejection and local ⌘D available. Global shortcut remains unverified. |
 | Dock / menu bar | Saved window-location preference; hiding/minimizing keeps rejection active; menu bar close hides, Dock close quits. Status icon offers Show, Start/Stop, mode selection, and Quit. |
+| Launch at login | One-time opt-in prompt and reversible checkbox/menu setting via SMAppService.mainApp. Approval and failure states are visible; filtering still requires an explicit Start. |
 | Coverage | macOS 15.7.5, family 129, driver type 4, parser 1000 / Compact V7 only. |
 
 Do not claim complete palm rejection until [manual acceptance](MANUAL-VERIFICATION.md) passes. Counters show implementation activity, not correct native gesture behavior.

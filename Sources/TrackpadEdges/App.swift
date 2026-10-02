@@ -44,6 +44,7 @@ final class AppModel: ObservableObject {
     @Published var contactsOnly = true
     @Published var rejectEdges = true
     @Published var filterText = ""
+    let startup = StartupSettings()
     let session = ObservationSession()
     private var deltaTracker = CenterDeltaTracker()
     private var previousSequence: UInt64 = 0
@@ -303,7 +304,11 @@ struct PrototypeView: View {
     @ObservedObject var model: AppModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Magic Trackpad · Palm rejection").font(.title2.bold())
+            HStack {
+                Text("Magic Trackpad · Palm rejection").font(.title2.bold())
+                Spacer()
+                StartupControl(settings: model.startup)
+            }
             HStack {
                 Text(model.rejectEdges ? "Native palm rejection · runs until stopped" : "Observation only · input passes unchanged")
                     .foregroundStyle(model.running && model.rejectEdges ? .green : .secondary).font(.headline)
@@ -399,6 +404,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         model.onWindowLocationChange = { [weak self] in self?.applyWindowLocation($0) }
         model.onHideWindow = { [weak self] in self?.window?.miniaturize(nil) }
         model.onRunningChange = { [weak self] in self?.updateStatusItem() }
+        model.startup.onChange = { [weak self] in self?.updateStatusItem() }
         let menu = NSMenu()
         let item = NSMenuItem(); menu.addItem(item)
         let submenu = NSMenu(); item.submenu = submenu
@@ -417,7 +423,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         NSApp.mainMenu = menu
         applyWindowLocation(model.windowLocation)
         showWindow(nil)
+        DispatchQueue.main.async { [weak self] in self?.offerStartup() }
     }
+
+    private func offerStartup() {
+        guard let model, let window, model.startup.shouldOfferStartup else { return }
+        let alert = NSAlert()
+        alert.messageText = "Open Trackpad Edges when you sign in?"
+        alert.informativeText = "The app can open automatically when you sign in to macOS after a restart or shutdown. Your saved margins will be restored. Press Start palm rejection to activate filtering. You can change this anytime with Open at login."
+        alert.addButton(withTitle: "Open at Login")
+        alert.addButton(withTitle: "Not Now")
+        alert.beginSheetModal(for: window) { [weak model] response in
+            guard let model else { return }
+            model.startup.markPromptAnswered()
+            if response == .alertFirstButtonReturn { model.startup.setRequested(true) }
+        }
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) { model?.startup.refresh() }
 
     private func menuItem(_ title: String, action: Selector, key: String = "") -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
@@ -481,11 +504,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         locations.addItem(dock); locations.addItem(menuBar)
         locationItem.submenu = locations; menu.addItem(locationItem)
         menu.addItem(.separator())
+        let startup = menuItem("Open at Login", action: #selector(toggleStartup(_:)))
+        startup.state = model.startup.requested ? .on : .off
+        startup.isEnabled = model.startup.canConfigure
+        menu.addItem(startup)
+        if model.startup.needsApproval {
+            menu.addItem(menuItem("Approve in Login Items…", action: #selector(openLoginItems(_:))))
+        }
+        menu.addItem(.separator())
         menu.addItem(menuItem("Quit Trackpad Edges", action: #selector(quit(_:))))
         menu.autoenablesItems = false
     }
 
-    func menuWillOpen(_ menu: NSMenu) { updateStatusItem() }
+    func menuWillOpen(_ menu: NSMenu) { model?.startup.refresh() }
+    @objc private func toggleStartup(_ sender: Any?) {
+        guard let model else { return }
+        model.startup.setRequested(!model.startup.requested)
+        if model.startup.errorMessage != nil { showWindow(sender) }
+    }
+    @objc private func openLoginItems(_ sender: Any?) { model?.startup.openLoginItems() }
     @objc private func showWindow(_ sender: Any?) {
         // Showing the controls restores the original Dock icon. Menu bar mode
         // removes it only when the user actually hides/minimizes the window.
