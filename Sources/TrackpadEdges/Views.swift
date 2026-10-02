@@ -53,6 +53,7 @@ struct MainView: View {
                 TrackpadCanvas(model: model)
                 Text("Drag the green edges or corners, or enter 0–45%. Margins save automatically.")
                     .font(.caption).foregroundStyle(.secondary)
+                PalmRuleControl(model: model)
                 DisclosureGroup("Advanced", isExpanded: $showAdvanced) {
                     AdvancedDiagnosticsView(model: model).padding(.top, 10)
                 }
@@ -65,6 +66,28 @@ struct MainView: View {
                 }
             }.padding(22).frame(maxWidth: .infinity, alignment: .leading)
         }.frame(minWidth: 660, minHeight: 610)
+    }
+}
+
+struct PalmRuleControl: View {
+    @ObservedObject var model: AppModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Also reject large contacts (palm)", isOn: $model.palmRuleEnabled)
+            if model.palmRuleEnabled {
+                HStack(spacing: 10) {
+                    Text("Size limit").font(.caption)
+                    Slider(value: Binding(get: { Double(model.palmPercent) }, set: { model.palmPercent = Int($0.rounded()) }),
+                           in: Double(AppModel.palmPercentRange.lowerBound)...Double(AppModel.palmPercentRange.upperBound), step: 1)
+                        .accessibilityLabel("Palm size limit")
+                    Text("\(model.palmPercent)%").font(.caption.monospacedDigit()).frame(width: 40, alignment: .trailing)
+                }
+            }
+            Text(model.palmRuleEnabled
+                 ? "Any contact bigger than this limit is ignored until it lifts, even in the middle of the pad. Lower is more aggressive and may also ignore a flat thumb. Applies live."
+                 : "Off. When on, a contact whose size is over a limit is ignored until it lifts, even in the middle of the pad.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 }
 

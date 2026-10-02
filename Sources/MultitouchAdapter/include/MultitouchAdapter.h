@@ -34,6 +34,9 @@ typedef struct {
 bool te_start_rejection(uint64_t device_id, TEFrameCallback callback, void *context,
     double left, double right, double top, double bottom);
 void te_set_margins(double left, double right, double top, double bottom);
+// Reject center contacts whose raw major-axis byte is >= limit (1-255). 0 disables.
+// Takes effect immediately and applies to later sessions.
+void te_set_palm_limit(uint8_t limit);
 TEFilterStats te_filter_stats(void);
 // Opt-in diagnostic capture of the undecoded 9-byte contact records of each
 // original (pre-filter) V7 packet, for finding size/pressure fields. Off by

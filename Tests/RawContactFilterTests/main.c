@@ -48,7 +48,25 @@ int main(void) {
     TERawFilter before=f; assert(!te_filter_packet(&f,in,22,out,64,&n) && !memcmp(&before,&f,sizeof f));
     assert(!te_filter_packet(&f,in,22,out,12,&n));
     f.left=.5; assert(!te_filter_packet(&f,in,13,out,64,&n));
+    // Palm rule: off by default, then a large center contact is dropped.
+    f=configured(); contact(in+4,100,0,1,4); in[8]=250;
+    assert(te_filter_packet(&f,in,13,out,64,&n) && n==13); // max_major == 0: rule off
+    f=configured(); f.max_major=150; contact(in+4,100,0,1,4); contact(in+13,300,0,2,4); in[8]=60; in[17]=250;
+    assert(te_filter_packet(&f,in,22,out,64,&n) && n==13 && (out[12]&15)==1 && f.palm==4); // palm id 2 only
+    assert(f.removed_contacts==1 && (f.admitted&4)==0);
+    // Sticky: it stays rejected after it shrinks, until it lifts.
+    in[17]=40; assert(te_filter_packet(&f,in,22,out,64,&n) && n==13 && f.palm==4);
+    contact(in+13,300,0,2,5); in[17]=40; assert(te_filter_packet(&f,in,22,out,64,&n) && n==13 && !f.palm);
+    contact(in+13,300,0,2,4); in[17]=40; assert(te_filter_packet(&f,in,22,out,64,&n) && n==22); // same id is a new touch
+    // Below the limit passes untouched; a palm-only frame is empty and cannot click.
+    f=configured(); f.max_major=150; contact(in+4,100,0,1,4); in[8]=149;
+    assert(te_filter_packet(&f,in,13,out,64,&n) && n==13 && !f.palm);
+    f=configured(); f.max_major=150; contact(in+4,100,0,1,4); in[8]=150; in[1]=0x9d;
+    assert(te_filter_packet(&f,in,13,out,64,&n) && n==4 && !(out[1]&7) && f.blocked_clicks==1);
+    // A rejected frame leaves the palm state untouched.
+    f=configured(); f.max_major=150; f.palm=2; contact(in+4,100,0,1,4); contact(in+13,200,0,1,4); in[8]=250; in[17]=250;
+    before=f; assert(!te_filter_packet(&f,in,22,out,64,&n) && !memcmp(&before,&f,sizeof f));
     uint8_t control[]={0x40,15,0}; f=configured();
     assert(te_filter_packet(&f,control,3,out,64,&n) && n==3 && !memcmp(out,control,3));
-    puts("Raw packet checks passed: mixed contacts, four edges, reentry, clicks/releases, liftoff, malformed packets, control reports.");
+    puts("Raw packet checks passed: mixed contacts, four edges, reentry, clicks/releases, liftoff, palm rule, malformed packets, control reports.");
 }

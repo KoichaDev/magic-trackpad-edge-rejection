@@ -69,6 +69,12 @@ Swift build caches are in `.build/`; the finished app is in `build/`. The genera
 7. **Advanced → Export capture…** saves bounded JSON with contact diagnostics and filter counters. Captures contain device identity and touch positions; keep them local.
 8. Click the version in the main window or choose **About Trackpad Edges…** to see the running app's version and build. **Settings → Application → Show app in Finder** reveals the actual app bundle, so you can distinguish an installed copy from an older build.
 
+### Large-contact (palm) rule
+
+Margins only help at the edges. The optional **Also reject large contacts (palm)** setting on the main window also ignores a contact in the middle of the pad whose size is over a limit. It is off by default and the limit is a percentage of the trackpad's size scale (50–100%, default 60%). A contact that is flagged stays ignored until it lifts, so it cannot flicker back in. A flagged contact cannot start a click, and changes apply immediately while protection is running.
+
+How it works: byte 4 of each raw V7 contact record is the major axis (the same value Apple decodes as `majorAxis`, 0–255, pinned at 255 for 29.16). In one hands-on capture, fingertip-sized contacts stayed at or below about 113 (44%) apart from a rare spike, and larger contacts reached 255. Pressure (byte 7) did not separate palms from fingers and is not used. A palm that lands small and grows may be admitted for a few frames before it is flagged. Pick a limit that suits your own hands by trying it, since this has only been tested with one person's captures.
+
 ### Start protection automatically
 
 **Settings → Startup → Start protection automatically** is off by default. When on, protection resumes by itself after the app launches, the Mac wakes, or the trackpad reconnects, but only if it was running when it last stopped. Pressing Stop, **⌘D**, or **⌃⌥⌘D** is respected and is not undone at the next launch. Quitting normally keeps protection resuming on the next launch.

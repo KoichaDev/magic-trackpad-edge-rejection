@@ -54,6 +54,7 @@ static TERawFilter raw_filter;
 static TEFilterStats filter_stats;
 static bool rejection_session;
 static uint8_t last_header[4];
+static uint8_t palm_limit_setting; // 0 = palm rule off
 static bool raw_capture_enabled;
 static TERawRecord raw_capture[TE_RAW_CAPTURE_CAPACITY];
 static size_t raw_capture_next, raw_capture_count;
@@ -227,7 +228,7 @@ static bool start_session(uint64_t device_id, TEFrameCallback callback, void *co
     }
     CFRelease(list);
     if (!target) { snprintf(error_text, sizeof(error_text), "Selected Bluetooth Magic Trackpad is unavailable or ineligible"); return false; }
-    TERawFilter configuration = {.left=left, .right=right, .top=top, .bottom=bottom};
+    TERawFilter configuration = {.left=left, .right=right, .top=top, .bottom=bottom, .max_major=palm_limit_setting};
     if (reject) {
         char os[64] = {0}; size_t os_size = sizeof(os);
         int32_t type = 0; TEDevice identity;
@@ -319,6 +320,13 @@ bool te_start_rejection(uint64_t id, TEFrameCallback callback, void *context,
 void te_set_margins(double left, double right, double top, double bottom) {
     pthread_mutex_lock(&callback_lock);
     raw_filter.left=left; raw_filter.right=right; raw_filter.top=top; raw_filter.bottom=bottom;
+    pthread_mutex_unlock(&callback_lock);
+}
+void te_set_palm_limit(uint8_t limit) {
+    pthread_mutex_lock(&callback_lock);
+    palm_limit_setting = limit;
+    raw_filter.max_major = limit;
+    if (!limit) raw_filter.palm = 0;
     pthread_mutex_unlock(&callback_lock);
 }
 TEFilterStats te_filter_stats(void) {

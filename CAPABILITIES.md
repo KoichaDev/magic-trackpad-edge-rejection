@@ -40,6 +40,7 @@ Device/contact captures and detailed verification output stay local under the ig
 | Stop / quit / failures | Filter-client closure and empty release frame implemented; no app-session timeout. Physical drag/scroll/disconnect test pending. |
 | Emergency shortcut | Stop palm rejection and local ⌘D available. Global shortcut remains unverified. |
 | Dock / menu bar | Saved window-location preference; hiding/minimizing keeps rejection active; menu bar close hides, Dock close quits. Status icon offers Show, Start/Stop, mode selection, and Quit. |
+| Large-contact rule | Optional, off by default. Rejects any center contact whose raw major-axis byte (V7 contact byte 4) is at or above a limit, sticky until liftoff. Derived from one 30-second hands-on capture (`--probe --raw-bytes`); needs wider validation. |
 | Launch at login | One-time opt-in prompt and reversible checkbox/menu setting via SMAppService.mainApp. Approval and failure states are visible; filtering still requires an explicit Start unless the separate opt-in "Start protection automatically" setting is on. |
 | Status and simplified UI | Active/Stopped/Observing/Disconnected/Unavailable/Error; original menu bar icon plus a short label. Main window retains device, margins, canvas and Start/Stop; diagnostics are under Advanced and preferences under Settings. Device discovery never activates protection. |
 | Installation and version | `sh install-app.sh` installs the signed build into Applications. Settings reveals the actual app path; About reads version/build from the running bundle. |

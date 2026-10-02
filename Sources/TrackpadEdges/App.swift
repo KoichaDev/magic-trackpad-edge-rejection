@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import EdgeModel
+import MultitouchAdapter
 
 enum WindowLocation: String, CaseIterable, Identifiable {
     case dock, menuBar
@@ -12,6 +13,29 @@ enum WindowLocation: String, CaseIterable, Identifiable {
 final class AppModel: ObservableObject {
     private static let marginsPreferenceKey = "edgeMargins.v1"
     private static let windowLocationPreferenceKey = "windowLocation.v1"
+    private static let palmEnabledKey = "palmRule.enabled.v1"
+    private static let palmPercentKey = "palmRule.percent.v1"
+    /// Fingertips stayed below about 44% of the raw size scale in testing, so the
+    /// slider never goes under 50%.
+    static let palmPercentRange = 50...100
+    static let defaultPalmPercent = 60
+    @Published var palmRuleEnabled = UserDefaults.standard.bool(forKey: AppModel.palmEnabledKey) {
+        didSet { UserDefaults.standard.set(palmRuleEnabled, forKey: Self.palmEnabledKey); applyPalmRule() }
+    }
+    @Published var palmPercent: Int = {
+        let saved = UserDefaults.standard.integer(forKey: AppModel.palmPercentKey)
+        return AppModel.palmPercentRange.contains(saved) ? saved : AppModel.defaultPalmPercent
+    }() {
+        didSet {
+            let clamped = min(max(palmPercent, Self.palmPercentRange.lowerBound), Self.palmPercentRange.upperBound)
+            if clamped != palmPercent { palmPercent = clamped; return }
+            UserDefaults.standard.set(palmPercent, forKey: Self.palmPercentKey); applyPalmRule()
+        }
+    }
+    /// Raw major-axis byte limit sent to the filter; 0 leaves the rule off.
+    private func applyPalmRule() {
+        te_set_palm_limit(palmRuleEnabled ? UInt8(max(1, min(255, (palmPercent * 255 + 50) / 100))) : 0)
+    }
     @Published var windowLocation = WindowLocation(rawValue: UserDefaults.standard.string(forKey: windowLocationPreferenceKey) ?? "") ?? .dock {
         didSet {
             UserDefaults.standard.set(windowLocation.rawValue, forKey: Self.windowLocationPreferenceKey)
@@ -89,6 +113,7 @@ final class AppModel: ObservableObject {
 
     init() {
         session.store.setMargins(margins)
+        applyPalmRule()
         autoStartObservation = autoStart.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         session.onStop = { [weak self] reason, kind in
             self?.status = reason

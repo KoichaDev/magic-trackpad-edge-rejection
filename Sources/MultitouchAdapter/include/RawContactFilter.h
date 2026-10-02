@@ -8,6 +8,11 @@ typedef struct {
     double left, right, top, bottom;
     int16_t min_x, min_y, max_x, max_y;
     uint16_t admitted;
+    // Palm rule: V7 contact byte 4 is the major axis (0-255, 255 = Apple's 29.16
+    // cap). A center contact at or above max_major is rejected like an edge
+    // contact and stays rejected until it lifts. 0 turns the rule off.
+    uint8_t max_major;
+    uint16_t palm; // Contact ids currently flagged by the palm rule.
     uint8_t physical_buttons, accepted_buttons;
     uint64_t removed_contacts, reentries, blocked_clicks;
 } TERawFilter;

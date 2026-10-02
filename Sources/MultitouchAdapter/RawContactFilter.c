@@ -12,7 +12,7 @@ bool te_filter_packet(TERawFilter *f, const uint8_t *in, size_t size,
         || f->max_x <= f->min_x || f->max_y <= f->min_y) return false;
     const double margins[] = {f->left, f->right, f->top, f->bottom};
     for (int i = 0; i < 4; i++) if (!isfinite(margins[i]) || margins[i] < 0 || margins[i] > .45) return false;
-    uint16_t seen = 0, admitted = 0;
+    uint16_t seen = 0, admitted = 0, ended = 0, palm = f->palm;
     size_t written = 4;
     unsigned active_center = 0;
     memcpy(out, in, 4);
@@ -32,10 +32,16 @@ bool te_filter_packet(TERawFilter *f, const uint8_t *in, size_t size,
         int py = 5000 + 2 * signed13((c[1] >> 5) | (c[2] << 3) | ((c[3] & 3u) << 11));
         double x = (double)(px - f->min_x) / (f->max_x - f->min_x);
         double y = (double)(py - f->min_y) / (f->max_y - f->min_y);
-        bool center = x >= f->left && x <= 1 - f->right && y >= f->bottom && y <= 1 - f->top;
+        // Sticky: once large, a contact stays a palm until it lifts, so it cannot
+        // flicker back in as it shifts. Applied only to local state until the
+        // whole frame is accepted.
+        if (f->max_major && c[4] >= f->max_major) palm |= bit;
+        bool center = x >= f->left && x <= 1 - f->right && y >= f->bottom && y <= 1 - f->top
+            && !(palm & bit);
         // An already admitted liftoff must reach the native recognizer even if
         // its final coordinate falls over the boundary. New edge paths vanish.
         bool ending = state == 5 || state == 6 || state == 7;
+        if (ending) ended |= bit;
         if (!center && !(ending && (f->admitted & bit))) { f->removed_contacts++; continue; }
         memcpy(out + written, c, 9);
         if (state == 4 && !(f->admitted & bit)) {
@@ -56,6 +62,7 @@ bool te_filter_packet(TERawFilter *f, const uint8_t *in, size_t size,
     // edge force must not turn into a native force click.
     out[1] = (out[1] & ~7u) | f->accepted_buttons | ((active_center || f->accepted_buttons) ? (in[1] & 4u) : 0);
     f->admitted = admitted;
+    f->palm = palm & seen & (uint16_t)~ended; // Forget contacts that lifted or vanished.
     *out_size = written;
     return true;
 }
