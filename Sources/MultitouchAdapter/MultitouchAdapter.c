@@ -238,10 +238,11 @@ static bool start_session(uint64_t device_id, TEFrameCallback callback, void *co
         int32_t parser_type = 0;
         if (parser && CFGetTypeID(parser) == CFNumberGetTypeID()) CFNumberGetValue(parser, kCFNumberSInt32Type, &parser_type);
         const char *reason = NULL;
-        // Any macOS 15.x is accepted; the descriptor, parser and packet
+        // macOS 15.x and 26.x are accepted; the descriptor, parser and packet
         // checks below still have to pass, and te_filter_packet fails closed.
-        if (sysctlbyname("kern.osproductversion", os, &os_size, NULL, 0) != 0 || strncmp(os, "15.", 3) != 0)
-            reason = "Unsupported macOS version: native rejection supports macOS 15.x only";
+        if (sysctlbyname("kern.osproductversion", os, &os_size, NULL, 0) != 0
+            || (strncmp(os, "15.", 3) != 0 && strncmp(os, "26.", 3) != 0))
+            reason = "Unsupported macOS version: native rejection supports macOS 15.x and 26.x only";
         else if (!describe(target, &identity) || identity.family != 129
                  || get_driver_type(target, &type) != 0 || type != 4 || parser_type != 1000)
             reason = "Unsupported trackpad: native rejection needs a Bluetooth Magic Trackpad (family 129, Compact V7)";
