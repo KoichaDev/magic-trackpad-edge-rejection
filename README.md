@@ -8,6 +8,8 @@ Rejection has been confirmed in a hands-on trial; the full physical gesture matr
 
 **Experimental and version-specific:** the validated environment is an Apple Silicon Mac running **macOS 15.7.5**, with a **Bluetooth Magic Trackpad family 129, driver type 4, parser type 1000 / Compact V7**. The filter accepts any macOS 15.x whose trackpad descriptor and packet format still match, and refuses other major versions and unsupported trackpad protocols with a specific reason. Only 15.7.5 has been verified, so run `MANUAL-VERIFICATION.md` after each macOS update; the private interfaces and packet format can change in any release.
 
+macOS 26.x is also accepted. It was checked on macOS 26.4 (Apple Silicon, MacBook Air M3) with a USB-C Magic Trackpad (family 129, driver type 4, parser type 1000): `sh test.sh` and `sh build-app.sh` passed, a 20-second `--probe --raw-bytes` passthrough ran with zero errors, and edge rejection worked in hands-on use. The full `MANUAL-VERIFICATION.md` checklist has not been run on 26.x.
+
 ## Build from source
 
 ### Prerequisites

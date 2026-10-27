@@ -77,7 +77,7 @@ do {
             "contactABISize": String(te_contact_abi_size()),
             "inputMonitoring": String(CGPreflightListenEventAccess()),
             "mode": "observation or experimental native raw rejection",
-            "rejection": "--reject-edges; macOS 15.x / Bluetooth family 129 only; app sessions run until stopped"
+            "rejection": "--reject-edges; macOS 15.x or 26.x / Bluetooth family 129 only; app sessions run until stopped"
         ])
     } else if arguments == ["--help"] {
         print("""

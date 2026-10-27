@@ -25,6 +25,8 @@ Device/contact captures and detailed verification output stay local under the ig
 
 - Release 0.4 native login-item registration was tested in an isolated, ad hoc signed app bundle on macOS 15.7.5. The first-run prompt appeared, Not Now stayed answered after reopening, enabling was reflected as enabled by macOS and survived an app restart, and disabling returned to unregistered. The temporary test item was unregistered before closing. An actual logout/login or Mac restart remains a manual check.
 
+- On macOS 26.4 (25E241) arm64 with a USB-C Magic Trackpad over Bluetooth (family 129, driver type 4, parser 1000, 16-byte Sensor Surface Descriptor), `sh test.sh` and `sh build-app.sh` passed with Swift 6.3.3. A 20-second `--probe --raw-bytes` passthrough forwarded **1,335 packets** with **zero filtering/reinjection errors** and **zero invalid contact frames**; decoded positions covered the full surface. Edge rejection in the app was then confirmed in hands-on use.
+
 - Release 0.5 (build 6) clean-source build and `sh test.sh` passed: 49 model assertions plus sanitizer-enabled raw packet checks. UI checks verified manual Start → Active, local ⌘D/Stop → Stopped, observation → Observing with rejection explicitly off, Advanced disclosure, Settings via the gear and keyboard shortcut, About version/build with the original icon, and synchronized canvas/slider/percentage editing. Installation into `/Applications` was verified with the running bundle path and Finder's original app icon. Existing margins and Open at login were preserved when relocating. Installer checks covered first install, replacement with a retained previous bundle, and refusal to replace a running app or an unrelated app. Physical disconnect, sleep, global shortcut, and direct status-menu interaction remain manual checks.
 
 ## Requirement status
@@ -44,7 +46,7 @@ Device/contact captures and detailed verification output stay local under the ig
 | Launch at login | One-time opt-in prompt and reversible checkbox/menu setting via SMAppService.mainApp. Approval and failure states are visible; filtering still requires an explicit Start unless the separate opt-in "Start protection automatically" setting is on. |
 | Status and simplified UI | Active/Stopped/Observing/Disconnected/Unavailable/Error; original menu bar icon plus a short label. Main window retains device, margins, canvas and Start/Stop; diagnostics are under Advanced and preferences under Settings. Device discovery never activates protection. |
 | Installation and version | `sh install-app.sh` installs the signed build into Applications. Settings reveals the actual app path; About reads version/build from the running bundle. |
-| Coverage | macOS 15.x (verified on 15.7.5), family 129, driver type 4, parser 1000 / Compact V7 only. |
+| Coverage | macOS 15.x and 26.x (verified on 15.7.5 and 26.4), family 129, driver type 4, parser 1000 / Compact V7 only. |
 
 Do not claim complete palm rejection until [manual acceptance](MANUAL-VERIFICATION.md) passes. Counters show implementation activity, not correct native gesture behavior.
 
